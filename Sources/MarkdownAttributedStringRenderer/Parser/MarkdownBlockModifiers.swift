@@ -7,16 +7,8 @@
 
 import SwiftUI
 
-struct Indentation: ViewModifier {
-    let indentationLevel: Int
-    func body(content: Content) -> some View {
-        content.padding(.leading, 15 * CGFloat(indentationLevel))
-    }
-}
-
-
 struct MakeListItem: ViewModifier {
-    let decorator: RenderableMarkdownBlock.ListItemDecorator
+    let decorator: ListItemDecorator
     
     func body(content: Content) -> some View {
         HStack(alignment: .firstTextBaseline) {
@@ -28,93 +20,79 @@ struct MakeListItem: ViewModifier {
 
 struct MakeDividerBelow: ViewModifier {
     func body(content: Content) -> some View {
-        VStack(alignment: .leading) {
+        VStack(alignment: .leading, spacing: 10) {
             content
             Divider()
-                .padding(.bottom)
+                .padding(.bottom, 13)
         }
     }
 }
 
 struct MakeBlockquote: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+    
+    var backgroundColor: Color {
+        colorScheme == .light
+        ? Color(.displayP3, red: 0.95, green: 0.95, blue: 0.95)
+        : Color(.displayP3, red: 0.2, green: 0.2, blue: 0.2)
+    }
+    
+    let isOutermost: Bool
+    
     func body(content: Content) -> some View {
-        HStack(spacing: 15) {
+        HStack(spacing: 4) {
             Rectangle()
-                .frame(width: 3)
+                .foregroundColor(.gray)
+                .frame(width: 4)
             content
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .opacity(0.7)
+        .background(backgroundColor)
+        .opacity(isOutermost ? 0.6 : 1)
     }
 }
 
 struct MakeCodeBlock: ViewModifier {
+    @Environment(\.colorScheme) var colorScheme
+    
+    var backgroundColor: Color {
+        colorScheme == .light
+        ? Color(.displayP3, red: 0.95, green: 0.95, blue: 0.95)
+        : Color(.displayP3, red: 0.25, green: 0.25, blue: 0.25)
+    }
+    
     func body(content: Content) -> some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(5)
-            .background(
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .foregroundColor(Color(.displayP3, red: 0.8, green: 0.8, blue: 0.8))
+            .padding(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .stroke(lineWidth: 0.5)
+                    .foregroundColor(.secondary)
             )
-            .padding(.bottom, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                    .foregroundColor(backgroundColor)
+            )
     }
 }
 
 extension View {
-    func indent(level: Int) -> some View {
-        modifier(Indentation(indentationLevel: level))
-    }
-    
-    func makeListItem(with decorator: RenderableMarkdownBlock.ListItemDecorator) -> some View {
+    func makeListItem(with decorator: ListItemDecorator) -> some View {
         modifier(MakeListItem(decorator: decorator))
-    }
-    
-    @ViewBuilder
-    func makeListItem(ifHas decorator: RenderableMarkdownBlock.ListItemDecorator?) -> some View {
-        if let decorator = decorator {
-            modifier(MakeListItem(decorator: decorator))
-        } else {
-            self
-        }
     }
     
     func makeDividerBelow() -> some View {
         modifier(MakeDividerBelow())
     }
     
-    @ViewBuilder
-    func makeDividerBelow(if hasDividerBelow: Bool) -> some View {
-        if !hasDividerBelow {
-            self
-        } else {
-            modifier(MakeDividerBelow())
-        }
-    }
-    
-    func makeBlockquote() -> some View {
-        modifier(MakeBlockquote())
-    }
-    
-    @ViewBuilder
-    func makeBlockquote(if isInBlockquote: Bool) -> some View {
-        if !isInBlockquote {
-            self
-        } else {
-            modifier(MakeBlockquote())
-        }
+    func makeBlockquote(isOutermost: Bool) -> some View {
+        modifier(MakeBlockquote(isOutermost: isOutermost))
     }
     
     func makeCodeBlock() -> some View {
         modifier(MakeCodeBlock())
     }
-    
-    @ViewBuilder
-    func makeCodeBlock(if isInCodeBlock: Bool) -> some View {
-        if !isInCodeBlock {
-            self
-        } else {
-            modifier(MakeCodeBlock())
-        }
-     }
 }
 

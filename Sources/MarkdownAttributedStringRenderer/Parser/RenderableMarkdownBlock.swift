@@ -10,86 +10,219 @@ import SwiftUI
 /// Remove any characters with "softBreak" or "LineBreak" inline presentation intent and replace those with a single new line character.
 /// - Parameter attrStr: The attributedString for replacing.
 func replaceInlineLineBreakIntentWithNewLineChar(_ attrStr: inout AttributedString) {
-// TODO: ignore softBreak at the end of a block
     for (inlineIntent, range) in attrStr.runs[\.inlinePresentationIntent]
-    where inlineIntent == .softBreak
+    where (inlineIntent == .softBreak && range.lowerBound != attrStr.endIndex) // ignore softBreak at the end of a block
     || inlineIntent == .lineBreak
     {
         attrStr.characters.replaceSubrange(range, with: "\n")
     }
 }
 
-struct RenderableMarkdownBlock {
+struct ThematicBreakBlock: RenderableBlock {
     
-    enum ListItemDecorator {
-        case unordered(isBlankDecorator: Bool = false, nestingLevel: Int)
-        case ordered(isBlankDecorator: Bool = false, nestingLevel: Int, ordinal: Int)
+    let id: AnyHashable
+    
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        Divider().padding([.top, .bottom])
+    }
+}
+
+struct ParagraphBlock: RenderableBlock {
+    
+    let transformedAttrStr: AttributedString
+    let id: AnyHashable
+    
+    init(attrStr: AttributedString, id: AnyHashable) {
+        self.id = id
+        var transformingAttrStr = attrStr
+        replaceInlineLineBreakIntentWithNewLineChar(&transformingAttrStr)
+        transformedAttrStr = transformingAttrStr
+    }
+    
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        Text(transformedAttrStr)
+    }
+}
+
+struct HeaderBlock: RenderableBlock {
+    
+    let id: AnyHashable
+    
+    let transformedAttrStr: AttributedString
+    let hasDividerBelow: Bool
+    
+    init(attrStr: AttributedString, id: AnyHashable, headerLevel: Int) {
+        self.id = id
+        self.hasDividerBelow = headerLevel < 3
+        let transformedFont = headerLevel == 1
+        ? Font.largeTitle.bold()
+        : headerLevel  == 2
+        ? Font.title.bold()
+        : headerLevel == 3
+        ? Font.title2.bold()
+        : Font.title3.bold()
         
-        var isBlank: Bool {
-            switch self {
-            case .ordered(isBlankDecorator: let isBlank, nestingLevel: _, ordinal: _):
-                return isBlank
-            case .unordered(isBlankDecorator: let isBlank, nestingLevel: _):
-                return isBlank
+        var transformingAttrStr = attrStr.transformingAttributes(\.presentationIntent) { transformer in
+            transformer.replace(with: \.font, value: transformedFont)
+        }
+        replaceInlineLineBreakIntentWithNewLineChar(&transformingAttrStr)
+        transformedAttrStr = transformingAttrStr
+    }
+    
+    var rendered: AnyView { AnyView(_rendered) }
+    @ViewBuilder
+    private var _rendered: some View {
+        let header = Text(transformedAttrStr)
+        if hasDividerBelow {
+            header
+                .makeDividerBelow()
+        } else {
+            header
+        }
+    }
+}
+
+struct CodeBlock: RenderableBlock {
+    
+    let id: AnyHashable
+    let transformedAttrStr: AttributedString
+    
+    init(attrStr: AttributedString, id: AnyHashable, conLangHint: String?) {
+        self.id = id
+        var transformingAttrStr = attrStr
+        if let lastChar = transformingAttrStr.characters.last, lastChar == "\n" {
+            transformingAttrStr.characters.removeLast()
+        }
+        // TODO: syntax highlight
+        transformedAttrStr = transformingAttrStr
+    }
+    
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        Text(transformedAttrStr)
+            .makeCodeBlock()
+    }
+}
+
+struct BlockquoteBlock: ContainerRenderableBlock {
+    
+    let id: AnyHashable
+    let isOutermost: Bool
+    
+    var children: Children
+    
+    var renderedChildren: AnyView { AnyView(_renderedChildren) }
+    private var _renderedChildren: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(children, id: \.id) { child in
+                child.rendered
             }
         }
     }
     
-    static func thematicBreak(with id: AnyHashable) -> Self { Self(thematicBreakWith: id) }
-    
-    
-    let isThematicBreak: Bool
-    
-    private var attrStrWithInlineIntentTransformed: AttributedString!
-    var attrStr: AttributedString {
-        get { attrStrWithInlineIntentTransformed }
-        set {
-            attrStrWithInlineIntentTransformed = newValue
-            replaceInlineLineBreakIntentWithNewLineChar(&attrStrWithInlineIntentTransformed)
-        }
-    }
-    var indentationLevel = 1
-    var hasDividerBelow = false // for h1/h2
-    var isInBlockquote = false
-    var isInCodeBlock = false
-    var codeLangHint: String? {
-        didSet {
-            guard let codeLangHint = codeLangHint else { return }
-            isInCodeBlock = true
-            // syntax highlight
-            // TODO:
-        }
-    }
-    var listItemDecorator: ListItemDecorator?
-    
-    let id: AnyHashable
-    
-    private init(thematicBreakWith id: AnyHashable) {
-        self.isThematicBreak = true
-        self.id = id
-    }
-    
-    init(attrStr: AttributedString, id: AnyHashable,
-         indentationLevel: Int = 1
-    ) {
-        self.id = id
-        self.indentationLevel = indentationLevel
-        self.isThematicBreak = false
-        
-        self.attrStr = attrStr
-    }
-    
-    @ViewBuilder
-    func render() -> some View {
-        if isThematicBreak {
-            Divider().padding([.top, .bottom])
-        } else {
-            Text(attrStr)
-                .makeDividerBelow(if: hasDividerBelow)
-                .makeCodeBlock(if: isInCodeBlock)
-                .makeBlockquote(if: isInBlockquote)
-                .makeListItem(ifHas: listItemDecorator)
-                .indent(level: indentationLevel)
-        }
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        _renderedChildren
+            .makeBlockquote(isOutermost: isOutermost)
     }
 }
+
+struct ListBlock: ContainerRenderableBlock {
+    let id: AnyHashable
+    let isOrdered: Bool
+    let nestingLevel: Int
+    
+    init(id: AnyHashable, isOrdered: Bool, nestingLevel: Int, listItems: [ListItemBlock]) {
+        self.id = id
+        self.isOrdered = isOrdered
+        self.nestingLevel = nestingLevel
+        self.children = listItems
+    }
+    
+    var children: Children
+    var listItems: [ListItemBlock] {
+        children as! [ListItemBlock]
+    }
+    
+    func getListItemDecorator(for ordinal: Int) -> ListItemDecorator {
+        isOrdered
+        ? .ordered(nestingLevel: nestingLevel, ordinal: ordinal)
+        : .unordered(nestingLevel: nestingLevel)
+    }
+    
+    var renderedChildren: AnyView { AnyView(_renderedChildren) }
+    private var _renderedChildren: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ForEach(listItems, id: \.id) { item in
+                item.rendered
+                    .makeListItem(with: getListItemDecorator(for: item.ordinal))
+            }
+        }
+    }
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        _renderedChildren
+    }
+}
+
+struct ListItemBlock: ContainerRenderableBlock {
+    let id: AnyHashable
+    
+    var children: Children
+    
+    let ordinal: Int
+    
+    var renderedChildren: AnyView { AnyView(_renderedChildren) }
+    private var _renderedChildren: some View {
+        VStack(alignment: .leading, spacing: 5) { // TODO: not using LazyVStack because it cannot be aligned by .firstTextBaseline with list bullet
+            ForEach(children, id: \.id) { child in
+                child.rendered
+            }
+        }
+    }
+    
+    var rendered: AnyView { AnyView(_rendered) }
+    private var _rendered: some View {
+        _renderedChildren
+    }
+}
+
+struct Document: ContainerRenderableBlock {
+    let id: AnyHashable
+    
+    var children: Children
+    var renderedChildren: AnyView {
+        AnyView(_renderedChildren)
+    }
+    private var _renderedChildren: some View {
+        LazyVStack(alignment: .leading, spacing: 20) {
+            ForEach(children, id: \.id) { child in
+                child.rendered
+            }
+        }
+    }
+    var rendered: AnyView {
+        AnyView(_rendered)
+    }
+    private var _rendered: some View {
+        _renderedChildren
+    }
+}
+
+protocol ContainerRenderableBlock: RenderableBlock {
+    typealias Children = [RenderableBlock]
+    var children: Children { get set }
+    
+    @ViewBuilder
+    var renderedChildren: AnyView { get }
+}
+
+
+protocol RenderableBlock {
+    var id: AnyHashable { get }
+    
+    var rendered: AnyView { get }
+}
+

@@ -8,14 +8,18 @@
 import SwiftUI
 
 class MarkdownAttributedStringParser {
-    static let shared = MarkdownAttributedStringParser()
-    private init() { }
+    let attrStr: AttributedString
+    init(_ attrStr: AttributedString) { self.attrStr = attrStr }
+    
+    typealias Presentation = PresentationIntent
+    typealias Intent = PresentationIntent.IntentType
+    typealias Index = AttributedString.Index
     
     // MARK: - Manage block id
     private var blockIDSet = Set<Int>()
-    private func idForSubRange(attrStr: AttributedString) -> Int {
+    private func id(for hashed: AnyHashable) -> Int {
         var hasher = Hasher()
-        hasher.combine(attrStr)
+        hasher.combine(hashed)
         if blockIDSet.contains(hasher.finalize()) {
             var deDup = 0
             while blockIDSet.contains(hasher.finalize()) {
@@ -27,203 +31,140 @@ class MarkdownAttributedStringParser {
         blockIDSet.insert(id)
         return id
     }
+    // MARK: - Block Nesting Relationship
+    private var nestingIntents: [Intent] = []
+    private var nestingChildrenSeqs: [ContainerRenderableBlock.Children] = []
+    private var currentChildren: [RenderableBlock] {
+        get { nestingChildrenSeqs.last! }
+        set {
+            let lastIdx = nestingChildrenSeqs.index(before: nestingChildrenSeqs.endIndex)
+            nestingChildrenSeqs[lastIdx] = newValue
+        }
+    }
+    // record start index to figure oute id for the whole container when container ended
+    private var containerIntent2StartIndex: [Intent : Index] = [:]
     
-    // MARK: - Handle list state
-    private var containingLists: [PresentationIntent.IntentType] = []
-    private var containingListItems: [PresentationIntent.IntentType] = []
-    
-    private var lastListIntents: Set<PresentationIntent.IntentType> = []
-    private var lastListItemIntents: Set<PresentationIntent.IntentType> = []
-    
-    private enum ListForward {
-        case `continue` // exact the same list but not in a list. eg complex list item with header and paragraph will break into two blocks
-        case nextItem(newItem: PresentationIntent.IntentType)
-        case nestedListBegin(newList: PresentationIntent.IntentType, newItem: PresentationIntent.IntentType)
-        case nestedListEndAndNextItem(endedListCount: Int, endedItemCount: Int, newItem: PresentationIntent.IntentType)
-        case nestedListEndAndNextList(endedCount: Int, newList: PresentationIntent.IntentType, newItem: PresentationIntent.IntentType)
-        case listEnd(endedCount: Int)
+    private func makeContentBlock(for presentation: Presentation, at range: Range<Index>) -> RenderableBlock {
+        // remove intents for container
+        let containerIntentsRemoved = presentation.withContainerIntentsRemoved
         
-        case notInList
+        var subAttrStr = AttributedString(attrStr[range])
+        subAttrStr.presentationIntent = containerIntentsRemoved
+        
+        let id = id(for: subAttrStr)
+        
+        if containerIntentsRemoved.isThematicBreak {
+            return ThematicBreakBlock(id: id)
+        } else if let headerLevel = containerIntentsRemoved.headerLevel {
+            return HeaderBlock(attrStr: subAttrStr, id: id, headerLevel: headerLevel)
+        } else if let codeHint = containerIntentsRemoved.codeLangHint {
+            return CodeBlock(attrStr: subAttrStr, id: id, conLangHint: codeHint)
+        } else {
+            return ParagraphBlock(attrStr: subAttrStr, id: id)
+        }
     }
     
-    private func listIntentDiff(_ lists: Set<PresentationIntent.IntentType>, _ items: Set<PresentationIntent.IntentType>) -> ListForward {
-        guard !(containingLists.isEmpty && containingListItems.isEmpty && lists.isEmpty && items.isEmpty) else { return .notInList }
+    private func makeContainerBlock(for intent: Intent, endedAt index: Index, with children: [RenderableBlock]) -> ContainerRenderableBlock {
+        let endedIntentStartIndex = containerIntent2StartIndex.removeValue(forKey: intent)!
+        let containerRange = endedIntentStartIndex..<index
+        let id = id(for: attrStr[containerRange])
         
-        let removedLists: Set<PresentationIntent.IntentType> = lastListIntents.subtracting(lists)
-        let addedLists: Set<PresentationIntent.IntentType> = lists.subtracting(lastListIntents)
-        let removedItems: Set<PresentationIntent.IntentType> = lastListItemIntents.subtracting(items)
-        let addedItems: Set<PresentationIntent.IntentType> = items.subtracting(lastListItemIntents)
-        
-        lastListIntents = lists
-        lastListItemIntents = items
-        
-        if !lists.isEmpty && !items.isEmpty
-            && removedLists.isEmpty && addedLists.isEmpty
-            && removedItems.isEmpty && addedItems.isEmpty
-        {
-            return .continue
-        }
-        
-        if removedLists.isEmpty && addedLists.isEmpty
-            && addedItems.count == 1 && removedItems.count == 1
-        {
-            return .nextItem(newItem: addedItems.first!)
-        }
-        
-        if removedLists.isEmpty && addedLists.count == 1
-            && removedItems.isEmpty && addedItems.count == 1
-        {
-            return .nestedListBegin(newList: addedLists.first!, newItem: addedItems.first!)
-        }
-        
-        if removedLists.count > 0 && addedLists.isEmpty
-            && removedItems.count > 0 && addedItems.count == 1
-        {
-            assert(removedLists.count == removedItems.count - 1)
-            return .nestedListEndAndNextItem(endedListCount: removedLists.count, endedItemCount: removedItems.count, newItem: addedItems.first!)
-        }
-        
-        if removedLists.count > 0 && addedLists.count == 1
-            && removedItems.count > 0 && addedItems.count == 1
-        {
-            assert(removedLists.count == removedItems.count)
-            return .nestedListEndAndNextList(endedCount: removedLists.count, newList: addedLists.first!, newItem: addedItems.first!)
-        }
-        
-        if removedLists.count > 0 && addedLists.isEmpty
-            && removedItems.count > 0 && addedItems.isEmpty
-        {
-            assert(removedLists.count == removedItems.count)
-            return .listEnd(endedCount: removedLists.count)
-        }
-        
-        fatalError("Impossible list forward")
-    }
-    
-    typealias ListDescription = (hasDecorator: Bool, nestingLevel: Int, ordinal: Int?)
-    
-    private func updateListState(_ diff: ListForward) -> ListDescription {
-        switch diff {
-        case .continue:
-            return (false, containingLists.count, nil)
+        if let ordinal = intent.listItemOrdinal {
+            return ListItemBlock(id: id, children: children, ordinal: ordinal)
+        } else if intent.isList {
+            // figure out nesting level
+            let isOrdered = intent.isOrderedList
             
-        case .nextItem(let newItem):
-            assert(!containingLists.isEmpty)
-            containingListItems.removeLast()
-            containingListItems.append(newItem)
-            
-        case .nestedListBegin(let newList, let newItem):
-            containingLists.append(newList)
-            containingListItems.append(newItem)
-            
-        case .nestedListEndAndNextItem(let endedListCount, let endedItemCount, let newItem):
-            containingLists.removeLast(endedListCount)
-            assert(!containingLists.isEmpty)
-            containingListItems.removeLast(endedItemCount)
-            containingListItems.append(newItem)
-            
-        case .nestedListEndAndNextList(let endedCount, let newList, let newItem):
-            containingLists.removeLast(endedCount)
-            containingListItems.removeLast(endedCount)
-            
-            containingLists.append(newList)
-            containingListItems.append(newItem)
-            
-        case .listEnd(_):
-            containingLists = []
-            containingListItems = []
-            return (false, 0, nil)
-            
-        case .notInList:
-            return (false, 0, nil)
-        }
-        return (true, containingLists.count, containingLists.last!.isOrderedList ? containingListItems.last!.listItemOrdinal : nil)
-    }
-    
-    // MARK: - Parse
-    private func resetEnvironment() {
-        blockIDSet = []
-        containingLists = []
-        containingListItems = []
-        lastListIntents = []
-        lastListItemIntents = []
-    }
-    
-    func parse(_ attrStr: AttributedString) -> [RenderableMarkdownBlock] {
-        // reset environment
-        resetEnvironment()
-        
-        return attrStr.runs[\.presentationIntent].map { (blockIntent, range) -> RenderableMarkdownBlock in
-            let subRangeAttrStr = AttributedString(attrStr[range])
-            // generate id for sub str, keep id stable if possible
-            let id = idForSubRange(attrStr: subRangeAttrStr)
-            // no presentation intent, skip
-            guard let blockIntent = blockIntent else { return .init(attrStr: subRangeAttrStr, id: id) }
-            // specail block
-            if blockIntent.isThematicBreak {
-                // thematicBreak is specail, cannot be contained by other block
-                // return rightaway
-                return RenderableMarkdownBlock.thematicBreak(with: id)
+            var nestingLevel = 0
+            for intent in nestingIntents.reversed() {
+                // intent is of the same list type
+                if intent.isListItem { continue }
+                guard intent.isList && intent.isOrderedList == isOrdered else { break }
+                nestingLevel += 1
             }
-            // the initial plain block
-            var ret = RenderableMarkdownBlock(attrStr: subRangeAttrStr, id: id, indentationLevel: blockIntent.indentationLevel)
-            
-            // exclusive intents
-            if blockIntent.isPlainParagraph {
-                // do nothing
-            } else if let headerLevel = blockIntent.headerLevel { // handle header
-                let headerFont = headerLevel == 1
-                ? Font.largeTitle
-                : headerLevel  == 2
-                ? Font.title
-                : headerLevel == 3
-                ? Font.title2
-                : Font.title3
-                
-                let hasDividerBelow = headerLevel < 3
-                let transformed = subRangeAttrStr.transformingAttributes(\.presentationIntent) { transformer in
-                    transformer.replace(with: \.font, value: headerFont)
+            return ListBlock(id: id, isOrdered: isOrdered, nestingLevel: nestingLevel, listItems: children as! [ListItemBlock])
+        } else if intent.kind == .blockQuote {
+            // firgure out is outermost
+            var isOutermost = true
+            for intent in nestingIntents.prefix(nestingIntents.count - 1) {
+                if intent.kind == .blockQuote {
+                    isOutermost = false
+                    break
                 }
-                ret.attrStr = transformed
-                ret.hasDividerBelow = hasDividerBelow
-            } else if let codeLangeHint = blockIntent.codeLangHint {
-                ret.codeLangHint = codeLangeHint
             }
-            
-            // inclusive intents
-            
-            // blockquote can contain other non list block
-            if blockIntent.isInBlockquote {
-                ret.isInBlockquote = true
-                ret.indentationLevel -= 1 // blockquote will have extra indentation, should treat differently
-            }
-            
-            // list block can contain other block
-            let diff = listIntentDiff(Set(blockIntent.listIntents), Set(blockIntent.listItemIntents))
-            let (hasDecorator, nestingLevel, ordinal) = updateListState(diff)
-            if blockIntent.isInList {
-                ret.listItemDecorator = ordinal == nil ? .unordered(isBlankDecorator: !hasDecorator, nestingLevel: nestingLevel) : .ordered(isBlankDecorator: !hasDecorator, nestingLevel: nestingLevel, ordinal: ordinal!)
-            }
-            
-            return ret
+            return BlockquoteBlock(id: id, isOutermost: isOutermost, children: children)
+        } else {
+            fatalError("Not implemented")
         }
+    }
+    
+    private func gatherEndedContainers(_ endedIntents: Set<Intent>, endedAt index: Index) {
+        let intentsFromDeepToShallow = endedIntents.sorted(by: { Intent.isInDeeperLevel(of: $0, comparedTo: $1) })
+        intentsFromDeepToShallow.forEach { intent in
+            let children = nestingChildrenSeqs.popLast()!
+            let block = makeContainerBlock(for: intent, endedAt: index, with: children)
+            currentChildren.append(block)
+            
+            nestingIntents.removeLast()
+        }
+    }
+    
+    private func prepareNewContainers(_ newIntents: Set<Intent>, startedAt index: Index) {
+        let intentsFromShallowToDeep = newIntents.sorted(by: { Intent.isInDeeperLevel(of: $1, comparedTo: $0) }) // TODO: components array itself is  already ordered?
+        
+        nestingIntents += intentsFromShallowToDeep
+        
+        intentsFromShallowToDeep.forEach { intent in
+            containerIntent2StartIndex[intent] = index
+            nestingChildrenSeqs.append([])
+        }
+    }
+    
+    private var lastContainerIntent: Set<Intent> = []
+    private func containerIntentDiff(_ currIntents: Set<Intent>) -> (new: Set<Intent>, ended: Set<Intent>) {
+        defer { lastContainerIntent = currIntents }
+        return (
+            currIntents.subtracting(lastContainerIntent),
+            lastContainerIntent.subtracting(currIntents)
+        )
+    }
+    
+    private var parsedDocument: Document?
+    func parse() -> Document {
+        if parsedDocument == nil {
+            nestingChildrenSeqs.append([/* this empty initial children is for the whole Document */])
+            
+            for (presentation, range) in attrStr.runs[\.presentationIntent] {
+                guard let presentation = presentation else { continue } // TODO: should handle nil intent block?
+                
+                // handle container block
+                let containerIntents = Set(presentation.containerBlockIntents)
+                let (newContainerIntents, endedContainerIntents) = containerIntentDiff(containerIntents)
+                gatherEndedContainers(endedContainerIntents, endedAt: range.upperBound)
+                prepareNewContainers(newContainerIntents, startedAt: range.upperBound)
+                
+                let currBlock: RenderableBlock = makeContentBlock(for: presentation, at: range)
+                currentChildren.append(currBlock)
+            }
+            
+            gatherEndedContainers(lastContainerIntent, endedAt: attrStr.endIndex)
+            let id = id(for: attrStr)
+            parsedDocument = Document(id: id, children: currentChildren)
+        }
+        return parsedDocument!
     }
 }
 
-fileprivate extension PresentationIntent.Kind {
+fileprivate extension PresentationIntent.IntentType {
+    var isList: Bool { kind == .orderedList || kind == .unorderedList }
+    var isOrderedList: Bool { kind == .orderedList }
     var isListItem: Bool {
-        switch self {
+        switch self.kind {
         case .listItem(ordinal: _):
             return true
         default:
             return false
         }
-    }
-}
-
-fileprivate extension PresentationIntent.IntentType {
-    var isOrderedList: Bool {
-        kind == .orderedList
     }
     var listItemOrdinal: Int? {
         switch kind {
@@ -233,6 +174,7 @@ fileprivate extension PresentationIntent.IntentType {
             return nil
         }
     }
+    var isContainer: Bool {  kind == .orderedList || kind == .unorderedList || isListItem || kind == .blockQuote }
 }
 
 fileprivate extension PresentationIntent {
@@ -260,8 +202,30 @@ fileprivate extension PresentationIntent {
         }
         return nil
     }
-    var isInList: Bool { components.map({ $0.kind }).contains(where: { $0.isListItem }) }
+    var isInList: Bool { components.contains(where: { $0.isListItem }) }
     var listIntents: [PresentationIntent.IntentType] { components.filter({ $0.kind == .orderedList || $0.kind == .unorderedList }) }
-    var listItemIntents: [PresentationIntent.IntentType] { components.filter({ $0.kind.isListItem }) }
+    var listItemIntents: [PresentationIntent.IntentType] { components.filter({ $0.isListItem }) }
+    
     var isInBlockquote: Bool { components.map({ $0.kind }).contains(.blockQuote) }
+    var blockquoteIntents: [PresentationIntent.IntentType] { components.filter({ $0.kind == .blockQuote }) }
+    
+    var isInContainerBlock: Bool { isInList || isInBlockquote }
+    var containerBlockIntents: [PresentationIntent.IntentType] { components.filter({ $0.isContainer }) }
+    var nonContainerBlockIntents: [PresentationIntent.IntentType] { components.filter({ !$0.isContainer }) }
+    
+    var withContainerIntentsRemoved: Self {
+        let nonContainerIntents = nonContainerBlockIntents
+        return Self(types: nonContainerIntents)
+    }
+}
+
+
+protocol IntentDepthComparable {
+    static func isInDeeperLevel(of it1: Self, comparedTo it2: Self) -> Bool
+}
+extension PresentationIntent.IntentType: IntentDepthComparable {
+    // determine nesting level according to intent identity (the larger, the deeper). Identity may not have the purpose of nesting depth, but it seems the only way to figure out depth in some cases
+    static func isInDeeperLevel(of it1: PresentationIntent.IntentType, comparedTo it2: PresentationIntent.IntentType) -> Bool {
+        it1.identity > it2.identity
+    }
 }
