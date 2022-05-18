@@ -33,6 +33,6 @@ struct ListItemDecoratorView: View {
                 Text("\(ordinal).")
             }
         }
-        .frame(width: 15, alignment: .trailing)
+        .frame(minWidth: 15, alignment: .trailing)
     }
 }

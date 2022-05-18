@@ -24,7 +24,7 @@ struct ThematicBreakBlock: RenderableBlock {
     
     var rendered: AnyView { AnyView(_rendered) }
     private var _rendered: some View {
-        Divider().padding([.top, .bottom])
+        Divider()
     }
 }
 
@@ -57,12 +57,16 @@ struct HeaderBlock: RenderableBlock {
         self.id = id
         self.hasDividerBelow = headerLevel < 3
         let transformedFont = headerLevel == 1
-        ? Font.largeTitle.bold()
+        ? Font.largeTitle.weight(.semibold)
         : headerLevel  == 2
-        ? Font.title.bold()
+        ? Font.title.weight(.semibold)
         : headerLevel == 3
-        ? Font.title2.bold()
-        : Font.title3.bold()
+        ? Font.title2.weight(.semibold)
+        : headerLevel == 4
+        ? Font.title3.weight(.semibold)
+        : headerLevel == 5
+        ? Font.custom("Header Level 5", size: 20, relativeTo: .title3).weight(.heavy)
+        : Font.custom("Header Level 6", size: 18, relativeTo: .title3).weight(.heavy)
         
         var transformingAttrStr = attrStr.transformingAttributes(\.presentationIntent) { transformer in
             transformer.replace(with: \.font, value: transformedFont)

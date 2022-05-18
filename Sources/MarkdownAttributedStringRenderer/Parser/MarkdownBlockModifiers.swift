@@ -23,7 +23,7 @@ struct MakeDividerBelow: ViewModifier {
         VStack(alignment: .leading, spacing: 10) {
             content
             Divider()
-                .padding(.bottom, 13)
+                .padding(.bottom, 10)
         }
     }
 }
@@ -50,6 +50,7 @@ struct MakeBlockquote: ViewModifier {
         }
         .background(backgroundColor)
         .opacity(isOutermost ? 0.6 : 1)
+        .padding([.top, .bottom], 5)
     }
 }
 
@@ -75,6 +76,7 @@ struct MakeCodeBlock: ViewModifier {
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .foregroundColor(backgroundColor)
             )
+            .padding([.top, .bottom], 5)
     }
 }
 
