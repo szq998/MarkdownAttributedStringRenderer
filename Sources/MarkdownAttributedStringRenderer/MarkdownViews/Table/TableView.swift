@@ -21,7 +21,7 @@ struct TableView: View {
     }
     
     var children: some View {
-        VStack(alignment: .leading) {
+        VStack(spacing: 0) {
             ForEach(tableBlock.tableRows, id: \.id) { tableRow in
                 TableRowView(tableRowBlock: tableRow)
             }

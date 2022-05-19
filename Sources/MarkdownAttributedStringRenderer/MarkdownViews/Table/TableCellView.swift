@@ -16,14 +16,20 @@ struct TableCellView: View {
     var width: CGFloat? { tableGeometryContext.width(for: tableCellBlock.id) }
     var height: CGFloat? { tableGeometryContext.height(for: tableCellBlock.id) }
     var alignment: Alignment { tableGeometryContext.alignment(for: tableCellBlock.id).viewAlignment(for: layoutDirection) }
-
+    
     var body: some View {
         Text(tableCellBlock.attrStr)
+            .padding()
             .onSizeChange { size in
                 guard size != .zero else { return }
                 tableGeometryContext.update(cellSize: size, for: tableCellBlock.id)
             }
             .frame(width: width, height: height, alignment: alignment)
+#if os(iOS)
+            .border(Color(uiColor: .separator), width: 0.5)
+#elseif os(macOS)
+            .border(Color(nsColor: .separatorColor), width: 0.5)
+#endif
     }
 }
 
