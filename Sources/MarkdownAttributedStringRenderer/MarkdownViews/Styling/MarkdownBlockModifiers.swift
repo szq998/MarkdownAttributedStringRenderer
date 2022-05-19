@@ -40,12 +40,12 @@ struct MakeBlockquote: ViewModifier {
     let isOutermost: Bool
     
     func body(content: Content) -> some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             Rectangle()
                 .foregroundColor(.gray)
                 .frame(width: 4)
             content
-                .padding(8)
+                .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(backgroundColor)
@@ -66,7 +66,8 @@ struct MakeCodeBlock: ViewModifier {
     func body(content: Content) -> some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
+            .padding([.top, .bottom], 15)
+            .padding([.leading, .trailing], 20)
             .overlay(
                 RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .stroke(lineWidth: 0.5)
@@ -97,4 +98,3 @@ extension View {
         modifier(MakeCodeBlock())
     }
 }
-

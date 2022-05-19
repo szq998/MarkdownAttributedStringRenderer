@@ -33,8 +33,8 @@ class MarkdownAttributedStringParser {
     }
     // MARK: - Block Nesting Relationship
     private var nestingIntents: [Intent] = []
-    private var nestingChildrenSeqs: [ContainerRenderableBlock.Children] = []
-    private var currentChildren: [RenderableBlock] {
+    private var nestingChildrenSeqs: [ContainerMarkdownBlock.Children] = []
+    private var currentChildren: [MarkdownBlock] {
         get { nestingChildrenSeqs.last! }
         set {
             let lastIdx = nestingChildrenSeqs.index(before: nestingChildrenSeqs.endIndex)
@@ -44,9 +44,9 @@ class MarkdownAttributedStringParser {
     // record start index to figure oute id for the whole container when container ended
     private var containerIntent2StartIndex: [Intent : Index] = [:]
     
-    private func makeContentBlock(for presentation: Presentation, at range: Range<Index>) -> RenderableBlock {
+    private func makeContentBlock(for presentation: Presentation, at range: Range<Index>) -> MarkdownBlock {
         // remove intents for container
-        let containerIntentsRemoved = presentation.withContainerIntentsRemoved
+        let containerIntentsRemoved = presentation.withContainerIntentsRemoved // TODO: should remove table cell intent?
         
         var subAttrStr = AttributedString(attrStr[range])
         subAttrStr.presentationIntent = containerIntentsRemoved
@@ -59,12 +59,14 @@ class MarkdownAttributedStringParser {
             return HeaderBlock(attrStr: subAttrStr, id: id, headerLevel: headerLevel)
         } else if let codeHint = containerIntentsRemoved.codeLangHint {
             return CodeBlock(attrStr: subAttrStr, id: id, conLangHint: codeHint)
+        } else if containerIntentsRemoved.isTableCell {
+            return TableCellBlock(attrStr: subAttrStr, id: id)
         } else {
             return ParagraphBlock(attrStr: subAttrStr, id: id)
         }
     }
     
-    private func makeContainerBlock(for intent: Intent, endedAt index: Index, with children: [RenderableBlock]) -> ContainerRenderableBlock {
+    private func makeContainerBlock(for intent: Intent, endedAt index: Index, with children: [MarkdownBlock]) -> ContainerMarkdownBlock {
         let endedIntentStartIndex = containerIntent2StartIndex.removeValue(forKey: intent)!
         let containerRange = endedIntentStartIndex..<index
         let id = id(for: attrStr[containerRange])
@@ -93,6 +95,10 @@ class MarkdownAttributedStringParser {
                 }
             }
             return BlockquoteBlock(id: id, isOutermost: isOutermost, children: children)
+        } else if intent.isTableRow {
+            return TableRowBlock(id: id, isHeaderRow: intent.isTableHeaderRow, tableCells: children as! [TableCellBlock])
+        } else if let tableColumns = intent.tableColumns {
+            return TableBlock(id: id, tableColumnAlignments: tableColumns.map({ $0.alignment }), tableRows: children as! [TableRowBlock])
         } else {
             fatalError("Not implemented")
         }
@@ -143,7 +149,7 @@ class MarkdownAttributedStringParser {
                 gatherEndedContainers(endedContainerIntents, endedAt: range.upperBound)
                 prepareNewContainers(newContainerIntents, startedAt: range.upperBound)
                 
-                let currBlock: RenderableBlock = makeContentBlock(for: presentation, at: range)
+                let currBlock: MarkdownBlock = makeContentBlock(for: presentation, at: range)
                 currentChildren.append(currBlock)
             }
             
@@ -159,13 +165,53 @@ fileprivate extension PresentationIntent.IntentType {
     var isList: Bool { kind == .orderedList || kind == .unorderedList }
     var isOrderedList: Bool { kind == .orderedList }
     var isListItem: Bool {
-        switch self.kind {
+        switch kind {
         case .listItem(ordinal: _):
             return true
         default:
             return false
         }
     }
+    var isTable: Bool {
+        switch kind {
+        case .table(columns: _):
+            return true
+        default:
+            return false
+        }
+    }
+    
+    var tableColumns: [PresentationIntent.TableColumn]? {
+        switch kind {
+        case .table(columns: let columns):
+            return columns
+        default:
+            return nil
+        }
+    }
+    
+    var isTableHeaderRow: Bool {
+        kind == .tableHeaderRow
+    }
+    var isTableBodyRow: Bool {
+        switch kind {
+        case .tableRow(rowIndex: _):
+            return true
+        default:
+            return false
+        }
+    }
+    var isTableRow: Bool { isTableHeaderRow || isTableBodyRow }
+    
+    var isTableCell: Bool {
+        switch kind {
+        case .tableCell(columnIndex: _):
+            return true
+        default:
+            return false
+        }
+    }
+    
     var listItemOrdinal: Int? {
         switch kind {
         case .listItem(ordinal: let ordinal):
@@ -174,7 +220,11 @@ fileprivate extension PresentationIntent.IntentType {
             return nil
         }
     }
-    var isContainer: Bool {  kind == .orderedList || kind == .unorderedList || isListItem || kind == .blockQuote }
+    var isContainer: Bool {
+        kind == .orderedList || kind == .unorderedList || isListItem
+        || kind == .blockQuote
+        || isTable || isTableRow
+    }
 }
 
 fileprivate extension PresentationIntent {
@@ -209,7 +259,8 @@ fileprivate extension PresentationIntent {
     var isInBlockquote: Bool { components.map({ $0.kind }).contains(.blockQuote) }
     var blockquoteIntents: [PresentationIntent.IntentType] { components.filter({ $0.kind == .blockQuote }) }
     
-    var isInContainerBlock: Bool { isInList || isInBlockquote }
+    var isTableCell: Bool { components.contains(where: { $0.isTableCell }) }
+    
     var containerBlockIntents: [PresentationIntent.IntentType] { components.filter({ $0.isContainer }) }
     var nonContainerBlockIntents: [PresentationIntent.IntentType] { components.filter({ !$0.isContainer }) }
     

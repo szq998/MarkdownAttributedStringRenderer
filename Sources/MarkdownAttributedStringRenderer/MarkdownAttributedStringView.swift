@@ -13,10 +13,13 @@ public struct MarkdownAttributedStringView: View {
     }
     
     private let markdownStr: String
-    public var body: some View {
+    private var markdownDocument: Document {
         MarkdownAttributedStringParser(markdownStr.markdowAttrStr)
-            .parse()
-            .rendered
+        .parse()
+    }
+    
+    public var body: some View {
+        DocumentView(document: markdownDocument)
     }
 }
 
