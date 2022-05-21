@@ -11,11 +11,12 @@ struct DocumentView: View {
     let document: Document
     
     var children: some View {
-        LazyVStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 20) {
             ForEach(document.children, id: \.id) { child in
                 renderMarkdownBlock(child)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     var body: some View {

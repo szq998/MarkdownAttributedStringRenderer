@@ -9,11 +9,11 @@ import SwiftUI
 
 struct TableView: View {
     let tableBlock: TableBlock
-    @StateObject var tableGeometryContext: TableGeometryContext
+    @StateObject var tableLayoutContext: TableLayoutContext
     
     init(tableBlock: TableBlock) {
         self.tableBlock = tableBlock
-        _tableGeometryContext = .init(wrappedValue: TableGeometryContext(
+        _tableLayoutContext = .init(wrappedValue: TableLayoutContext(
             rowCount: tableBlock.rowCount, columnCount: tableBlock.columnCount,
             tableColumnAlignments: tableBlock.tableColumnAlignments,
             cellID2CellPosition: tableBlock.cellID2CellPosition)
@@ -29,8 +29,16 @@ struct TableView: View {
     }
     
     var body: some View {
-        children
-            .environmentObject(tableGeometryContext)
+        HStack {
+            children
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onSizeChange(perform: { size in
+            guard size.width != .zero else { return }
+            tableLayoutContext.update(containerWidth: size.width)
+        })
+        .drawTableSeparator(tableLayoutContext: tableLayoutContext)
+        .environmentObject(tableLayoutContext)
     }
 }
 

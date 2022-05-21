@@ -11,7 +11,7 @@ struct TableRowView: View {
     let tableRowBlock: TableRowBlock
     
     var children: some View {
-        HStack(alignment: .center, spacing: 0) {
+        HStack(spacing: 0) {
             ForEach(tableRowBlock.tableCells, id: \.id) { tableCell in
                 TableCellView(tableCellBlock: tableCell)
             }
