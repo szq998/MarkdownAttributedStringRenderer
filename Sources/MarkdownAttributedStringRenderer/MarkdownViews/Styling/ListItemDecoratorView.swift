@@ -22,8 +22,10 @@ struct ListItemDecoratorView: View {
                 switch level - 1 {
                 case 0:
                     Text("•") // bullet
+                        .font(.body.weight(.black))
                 case 1:
                     Text("◦") // white bullet
+                        .font(.body.weight(.black))
                 case 2:
                     Text("▪︎") // small square
                 default:
@@ -31,6 +33,7 @@ struct ListItemDecoratorView: View {
                 }
             case .ordered(nestingLevel: _, ordinal: let ordinal):
                 Text("\(ordinal).")
+                    .font(.body.monospacedDigit())
             }
         }
         .frame(minWidth: 15, alignment: .trailing)
