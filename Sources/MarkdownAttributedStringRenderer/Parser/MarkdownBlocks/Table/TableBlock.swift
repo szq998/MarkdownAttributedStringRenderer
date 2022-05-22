@@ -25,8 +25,19 @@ struct TableBlock: ContainerMarkdownBlock {
         var filledTableRows = tableRows
         filledTableRows.enumerated().forEach { (rowIdx, row) in
             if row.children.count < tableColumnAlignments.count {
-                let numOfCellToFill = tableColumnAlignments.count - row.children.count
-                filledTableRows[rowIdx].children += [TableCellBlock](repeating: .cellForAlignment, count: numOfCellToFill)
+                var rowHasher = Hasher()
+                rowHasher.combine(id)
+                rowHasher.combine(rowIdx)
+                
+                let fillingCells = (row.children.count..<tableColumnAlignments.count).map { (columnIdx) -> TableCellBlock in
+                    var hasher = rowHasher
+                    hasher.combine(columnIdx)
+                    let cellID = hasher.finalize()
+                    
+                    return TableCellBlock.cellForAlignment(with: cellID)
+                }
+                
+                filledTableRows[rowIdx].children += fillingCells
             }
         }
         self.children = filledTableRows
@@ -50,5 +61,7 @@ struct TableBlock: ContainerMarkdownBlock {
 }
 
 extension TableCellBlock {
-    static var cellForAlignment: Self { .init(attrStr: AttributedString(), id: UUID()) } // TODO: is UUID reasonable
+    static func cellForAlignment(with id: AnyHashable) -> Self {
+        .init(attrStr: AttributedString(), id: id)
+    }
 }
