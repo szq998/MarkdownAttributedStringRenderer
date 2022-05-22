@@ -20,7 +20,7 @@ struct TableRowView: View {
     
     var body: some View {
         children
-            .font(.body.weight(tableRowBlock.isHeaderRow ? .medium : .regular))
+            .font(.body.weight(tableRowBlock.isHeaderRow ? .semibold : .regular))
     }
 }
 

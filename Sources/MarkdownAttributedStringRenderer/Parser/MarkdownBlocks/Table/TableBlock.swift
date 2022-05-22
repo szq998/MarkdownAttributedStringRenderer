@@ -14,17 +14,25 @@ struct TableBlock: ContainerMarkdownBlock {
     var children: Children
     let tableColumnAlignments: [TableColumnAlignment]
     let cellID2CellPosition: [AnyHashable : CellPosition]
-        
+    
     typealias CellPosition = (row: Int, column: Int)
     
     init(id: AnyHashable, tableColumnAlignments: [TableColumnAlignment], tableRows: [TableRowBlock]) {
         self.id = id
         self.tableColumnAlignments = tableColumnAlignments
-        self.children = tableRows
         
+        // align the table by filling the short rows
+        var filledTableRows = tableRows
+        filledTableRows.enumerated().forEach { (rowIdx, row) in
+            if row.children.count < tableColumnAlignments.count {
+                let numOfCellToFill = tableColumnAlignments.count - row.children.count
+                filledTableRows[rowIdx].children += [TableCellBlock](repeating: .cellForAlignment, count: numOfCellToFill)
+            }
+        }
+        self.children = filledTableRows
         
         var cellID2CellPosition: [AnyHashable : CellPosition] = [:]
-        tableRows.enumerated().forEach { (rowIdx, rowBlock) in
+        filledTableRows.enumerated().forEach { (rowIdx, rowBlock) in
             rowBlock.children.enumerated().forEach { (columnIdx, cellBlock) in
                 cellID2CellPosition[cellBlock.id] = (rowIdx, columnIdx)
             }
@@ -36,6 +44,11 @@ struct TableBlock: ContainerMarkdownBlock {
     var columnCount: Int { tableColumnAlignments.count }
     
     var tableRows: [TableRowBlock] {
-        children as! [TableRowBlock]
+        get { children as! [TableRowBlock] }
+        set { children = newValue }
     }
+}
+
+extension TableCellBlock {
+    static var cellForAlignment: Self { .init(attrStr: AttributedString(), id: UUID()) } // TODO: is UUID reasonable
 }

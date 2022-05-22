@@ -74,7 +74,6 @@ struct TableSeparatorDrawing: ViewModifier {
     }
 }
 
-
 // MARK: - Cell Layout
 struct TableLayout: ViewModifier {
     let id: AnyHashable
