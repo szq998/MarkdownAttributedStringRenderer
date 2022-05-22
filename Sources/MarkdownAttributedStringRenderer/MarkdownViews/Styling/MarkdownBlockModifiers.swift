@@ -9,11 +9,15 @@ import SwiftUI
 
 struct MakeListItem: ViewModifier {
     let decorator: ListItemDecorator
+    let decoratorWidth: CGFloat = 25
+    let spaceBetweenSeparatorAndItem: CGFloat = 8
     
     func body(content: Content) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            ListItemDecoratorView(decorator: decorator)
+        // Use ZStack instead of HStack for performance. Deeply nested HStack have significant impact on responsiveness
+        ZStack(alignment: .init(horizontal: .leading, vertical: .firstTextBaseline)) {
+            ListItemDecoratorView(decorator: decorator, decoratorWidth: decoratorWidth)
             content
+                .padding(.leading, decoratorWidth + spaceBetweenSeparatorAndItem)
         }
     }
 }

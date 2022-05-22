@@ -14,6 +14,7 @@ enum ListItemDecorator {
 
 struct ListItemDecoratorView: View {
     let decorator: ListItemDecorator
+    let decoratorWidth: CGFloat
     
     var body: some View {
         Group {
@@ -33,10 +34,11 @@ struct ListItemDecoratorView: View {
                 }
             case .ordered(nestingLevel: _, ordinal: let ordinal):
                 Text("\(ordinal).")
+                    .font(.subheadline.monospacedDigit().weight(.light))
                     .lineLimit(1)
-                    .font(.callout.monospacedDigit().weight(.light))
+                    .minimumScaleFactor(0.1)
             }
         }
-        .frame(minWidth: 20, alignment: .trailing)
+        .frame(width: decoratorWidth, alignment: .trailing)
     }
 }
