@@ -31,13 +31,13 @@ struct TableView: View {
     var body: some View {
         HStack {
             children
+                .drawTableSeparator(tableLayoutContext: tableLayoutContext)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onSizeChange(perform: { size in
             guard size.width != .zero else { return }
             tableLayoutContext.update(containerWidth: size.width)
         })
-        .drawTableSeparator(tableLayoutContext: tableLayoutContext)
         .environmentObject(tableLayoutContext)
     }
 }
