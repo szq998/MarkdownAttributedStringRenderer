@@ -9,10 +9,15 @@ import SwiftUI
 
 // MARK: - Table Separator
 struct TableSeparator: Shape {
-    @ObservedObject var tableLayoutContext: TableLayoutContext
+    static let role: ShapeRole = .stroke
+    
+    let shouldDrawBorder: Bool
+    let columnWidths: [CGFloat]
+    let rowHeights: [CGFloat]
     
     func verticalSeparatorLines(in rect: CGRect) -> [(CGPoint, CGPoint)] {
-        let columnWidths = tableLayoutContext.columnWidths.map({ $0! })
+        guard !columnWidths.isEmpty else { return [] }
+        
         var xPos = rect.origin.x
         return columnWidths.prefix(columnWidths.count - 1).map { (columnWidth) -> (CGPoint, CGPoint) in
             xPos += columnWidth
@@ -21,7 +26,8 @@ struct TableSeparator: Shape {
     }
     
     func horizontalSeparatorLines(in rect: CGRect) -> [(CGPoint, CGPoint)] {
-        let rowHeights = tableLayoutContext.rowHeights.map({ $0! })
+        guard !rowHeights.isEmpty else { return [] }
+        
         var yPos = rect.origin.y
         return rowHeights.prefix(rowHeights.count - 1).map { (rowHeight) -> (CGPoint, CGPoint) in
             yPos += rowHeight
@@ -32,9 +38,12 @@ struct TableSeparator: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         
-        guard tableLayoutContext.isColumnWidthValid && tableLayoutContext.hasAllSizeAcquired else { return path }
+        if shouldDrawBorder {
+            path.addRect(rect)
+        }
         
-        for (fromPoint, toPoint) in verticalSeparatorLines(in: rect) + horizontalSeparatorLines(in: rect) {
+        let lines = verticalSeparatorLines(in: rect) + horizontalSeparatorLines(in: rect)
+        for (fromPoint, toPoint) in lines {
             path.move(to: fromPoint)
             path.addLine(to: toPoint)
         }
@@ -43,8 +52,14 @@ struct TableSeparator: Shape {
     }
 }
 
-struct TableSeparatorModifier: ViewModifier {
-    var tableLayoutContext: TableLayoutContext
+struct TableSeparatorDrawing: ViewModifier {
+    @EnvironmentObject var tableLayoutContext: TableLayoutContext
+    
+    var shouldDrawBorder: Bool { tableLayoutContext.columnCount == 1 || tableLayoutContext.rowCount == 1 }
+    var columnWidths: [CGFloat] { tableLayoutContext.hasAllSizeAcquired ? tableLayoutContext.columnWidths.map({ $0! }) : [] }
+    var rowHeights: [CGFloat] { tableLayoutContext.hasAllSizeAcquired ? tableLayoutContext.rowHeights.map({ $0! }) : [] }
+    
+    var separatorLineWidth: CGFloat { tableLayoutContext.isColumnWidthValid ? 1 : 0 } // hide separator when invalid
 #if os(iOS)
     let strokeColor = Color(uiColor: .separator)
 #elseif os(macOS)
@@ -53,8 +68,8 @@ struct TableSeparatorModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                TableSeparator(tableLayoutContext: tableLayoutContext)
-                    .stroke(strokeColor, lineWidth: 1)
+                TableSeparator(shouldDrawBorder: shouldDrawBorder, columnWidths: columnWidths, rowHeights: rowHeights)
+                    .stroke(strokeColor, lineWidth: separatorLineWidth)
             )
     }
 }
@@ -87,7 +102,7 @@ extension View {
         modifier(TableLayout(id: id))
     }
     
-    func drawTableSeparator(tableLayoutContext: TableLayoutContext) -> some View {
-        modifier(TableSeparatorModifier(tableLayoutContext: tableLayoutContext))
+    func drawTableSeparator() -> some View {
+        modifier(TableSeparatorDrawing())
     }
 }

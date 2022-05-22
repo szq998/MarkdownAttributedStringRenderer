@@ -29,9 +29,9 @@ struct TableView: View {
     }
     
     var body: some View {
-        HStack {
+        HStack { // children nesting in another container to prevent always consuming all horizontal space
             children
-                .drawTableSeparator(tableLayoutContext: tableLayoutContext)
+                .drawTableSeparator()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onSizeChange(perform: { size in
