@@ -56,39 +56,46 @@ class TableLayoutContext: ObservableObject {
         cellSizes = [[CGSize]](repeating: [CGSize](repeating: .zero, count: columnCount), count: rowCount)
         
         containerWidthSubject
-            .removeDuplicates()
+            .removeDuplicates(by: { abs($0 - $1) < 1.0 }) // workaround to resolve infinite loop
             .sink { [weak self] _ in
-                // invalidate column width when ccontainer size changed
-                withAnimation {
-                    self?.isColumnWidthValid = false
-                }
+                self?.containerWidthWillChange()
             }
             .store(in: &cancellers)
         
         containerWidthSubject
-            .removeDuplicates()
+            .removeDuplicates(by: { abs($0 - $1) < 1.0 })
             .debounce(for: .seconds(0.2), scheduler: RunLoop.main)
             .sink { [weak self] newWidth in
                 guard let self = self else { return }
-                
-                withAnimation {
-                    let columnWidthSum = self.columnWidths.reduce(CGFloat.zero) { partialResult, width in
-                        if let width = width {
-                            return partialResult + width
-                        } else {
-                            return partialResult
-                        }
-                    }
-                    
-                    if columnWidthSum > newWidth {
-                        self.columnWidths = [CGFloat?](repeating: newWidth / CGFloat(columnCount), count: columnCount)
-                    }
-                    
-                    self.isColumnWidthValid = true
-                }
-                //                print("Column width reset to \(newWidth)")
+                self.containerWidthDidChanged(to: newWidth)
             }
             .store(in: &self.cancellers)
+    }
+    
+    func containerWidthWillChange() {
+        // invalidate column width when ccontainer size changed
+        withAnimation {
+            self.isColumnWidthValid = false
+        }
+    }
+    
+    func containerWidthDidChanged(to newWidth: CGFloat) {
+        withAnimation {
+            let columnWidthSum = self.columnWidths.reduce(CGFloat.zero) { partialResult, width in
+                if let width = width {
+                    return partialResult + width
+                } else {
+                    return partialResult
+                }
+            }
+            
+            if columnWidthSum > newWidth {
+                self.columnWidths = [CGFloat?](repeating: newWidth / CGFloat(columnCount), count: columnCount)
+            }
+            
+            self.isColumnWidthValid = true
+        }
+        //                print("Column width reset to \(newWidth)")
     }
     
     @Published var isColumnWidthValid: Bool = false

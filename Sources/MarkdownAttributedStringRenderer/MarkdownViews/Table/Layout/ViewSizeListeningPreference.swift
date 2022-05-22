@@ -19,14 +19,12 @@ struct SizeListening: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(
-                GeometryReader { geo  in
-                    Color.clear
+                GeometryReader { (geo) -> Color  in
                     // cannot directly use ".preferece(key: ViewSizeKey.self, value: geo.size)"
                     // or you will only get zero size
                     // trick to prevent zero size from geometry reader
-                        .onChange(of: geo.size) { newSize in
-                            size = newSize
-                        }
+                    DispatchQueue.main.async { size = geo.size }
+                    return Color.clear
                 }
             )
             .preference(key: ViewSizeKey.self, value: size)
