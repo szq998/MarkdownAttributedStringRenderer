@@ -33,9 +33,10 @@ struct ListItemDecoratorView: View {
                 }
             case .ordered(nestingLevel: _, ordinal: let ordinal):
                 Text("\(ordinal).")
-                    .font(.body.monospacedDigit())
+                    .lineLimit(1)
+                    .font(.callout.monospacedDigit().weight(.light))
             }
         }
-        .frame(minWidth: 15, alignment: .trailing)
+        .frame(minWidth: 20, alignment: .trailing)
     }
 }
