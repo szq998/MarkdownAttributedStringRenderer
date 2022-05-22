@@ -26,7 +26,7 @@ struct HeaderBlock: MarkdownBlock {
         : headerLevel == 5
         ? Font.custom("Header Level 5", size: 20, relativeTo: .title3).weight(.heavy)
         : Font.custom("Header Level 6", size: 18, relativeTo: .title3).weight(.heavy)
-        
+
         var transformingAttrStr = attrStr.transformingAttributes(\.presentationIntent) { transformer in
             transformer.replace(with: \.font, value: transformedFont)
         }
