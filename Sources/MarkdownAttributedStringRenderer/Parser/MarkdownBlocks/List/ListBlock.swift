@@ -8,20 +8,27 @@
 import Foundation
 
 struct ListBlock: ContainerMarkdownBlock {
-    let id: AnyHashable
-    let isOrdered: Bool
-    let nestingLevel: Int
+    var id: AnyHashable = 0
+    let digest: AnyHashable
     
-    init(id: AnyHashable, isOrdered: Bool, nestingLevel: Int, listItems: [ListItemBlock]) {
-        self.id = id
+    let isOrdered: Bool
+    var nestingLevel: Int
+    
+    init(digest: AnyHashable, isOrdered: Bool, nestingLevel: Int, listItems: [ListItemBlock]) {
+        self.digest = digest
         self.isOrdered = isOrdered
         self.nestingLevel = nestingLevel
         self.children = listItems
+        
+        setChildrenID()
     }
     
     var children: Children
     var listItems: [ListItemBlock] {
         children as! [ListItemBlock]
+    }
+    mutating func setChildrenID() {
+        setMarkdownBlockChildrenID(for: &self)
     }
     
     func getListItemDecorator(for ordinal: Int) -> ListItemDecorator {

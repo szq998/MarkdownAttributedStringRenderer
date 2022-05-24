@@ -8,11 +8,13 @@
 import Foundation
 
 struct CodeBlock: MarkdownBlock {
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
     let transformedAttrStr: AttributedString
     
-    init(attrStr: AttributedString, id: AnyHashable, conLangHint: String?) {
-        self.id = id
+    init(digest: AnyHashable, attrStr: AttributedString, conLangHint: String?) {
+        self.digest = digest
         var transformingAttrStr = attrStr
         if let lastChar = transformingAttrStr.characters.last, lastChar == "\n" {
             transformingAttrStr.characters.removeLast()

@@ -8,12 +8,14 @@
 import SwiftUI
 
 struct HeaderBlock: MarkdownBlock {
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
     let transformedAttrStr: AttributedString
     let hasDividerBelow: Bool
     
-    init(attrStr: AttributedString, id: AnyHashable, headerLevel: Int) {
-        self.id = id
+    init(digest: AnyHashable, attrStr: AttributedString, headerLevel: Int) {
+        self.digest = digest
         self.hasDividerBelow = headerLevel < 3
         let transformedFont = headerLevel == 1
         ? Font.largeTitle.weight(.semibold)
@@ -26,7 +28,7 @@ struct HeaderBlock: MarkdownBlock {
         : headerLevel == 5
         ? Font.custom("Header Level 5", size: 20, relativeTo: .title3).weight(.heavy)
         : Font.custom("Header Level 6", size: 18, relativeTo: .title3).weight(.heavy)
-
+        
         var transformingAttrStr = attrStr.transformingAttributes(\.presentationIntent) { transformer in
             transformer.replace(with: \.font, value: transformedFont)
         }

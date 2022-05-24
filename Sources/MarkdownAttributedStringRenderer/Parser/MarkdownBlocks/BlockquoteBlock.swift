@@ -8,7 +8,19 @@
 import Foundation
 
 struct BlockquoteBlock: ContainerMarkdownBlock {
-    let id: AnyHashable
-    let isOutermost: Bool
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
+    init(digest: AnyHashable, isOutermost: Bool, children: Children) {
+        self.digest = digest
+        self.isOutermost = isOutermost
+        self.children = children
+        setChildrenID()
+    }
+    
+    var isOutermost: Bool
     var children: Children
+    mutating func setChildrenID() {
+        setMarkdownBlockChildrenID(for: &self)
+    }
 }

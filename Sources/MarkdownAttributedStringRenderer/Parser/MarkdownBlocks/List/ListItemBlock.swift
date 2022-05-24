@@ -8,7 +8,18 @@
 import Foundation
 
 struct ListItemBlock: ContainerMarkdownBlock {
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
+    init(digest: AnyHashable, children: Children) {
+        self.digest = digest
+        self.children = children
+        
+        setChildrenID()
+    }
+    
     var children: Children
-    let ordinal: Int
+    mutating func setChildrenID() {
+        setMarkdownBlockChildrenID(for: &self)
+    }
 }

@@ -8,5 +8,6 @@
 import Foundation
 
 struct ThematicBreakBlock: MarkdownBlock {
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
 }

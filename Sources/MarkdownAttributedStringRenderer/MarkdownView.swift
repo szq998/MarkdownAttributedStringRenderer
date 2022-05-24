@@ -14,18 +14,19 @@ class MarkdownModel: ObservableObject {
     
     init(rawMarkdown: String) {
         _rawMarkdown = .init(initialValue: rawMarkdown)
-        let parser = MarkdownAttributedStringParser(rawMarkdown.markdowAttrStr)
-        _document = .init(initialValue: parser.parse())
+        _document = .init(initialValue: parser.parse(rawMarkdown.markdowAttrStr))
         
         $rawMarkdown
             .removeDuplicates()
             .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
             .sink { [weak self] rawMarkdown in
-                self?.document = MarkdownAttributedStringParser(rawMarkdown.markdowAttrStr).parse()
+                guard let self = self else { return }
+                self.document = self.parser.parse(rawMarkdown.markdowAttrStr)
             }
             .store(in: &canceller)
     }
     
+    let parser = MarkdownAttributedStringParser()
     var canceller: Set<AnyCancellable> = []
 }
 
@@ -48,7 +49,8 @@ public struct MarkdownView: View {
 
 fileprivate extension String {
     var markdowAttrStr: AttributedString {
-        try! AttributedString(markdown: self, options: .init(allowsExtendedAttributes: true, interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, languageCode: nil))
+        (try? AttributedString(markdown: self, options: .init(allowsExtendedAttributes: true, interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, languageCode: nil)))
+        ?? AttributedString(self)
     }
 }
 

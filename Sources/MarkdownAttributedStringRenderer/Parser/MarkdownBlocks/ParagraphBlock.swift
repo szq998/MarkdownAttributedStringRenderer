@@ -8,11 +8,13 @@
 import Foundation
 
 struct ParagraphBlock: MarkdownBlock {
-    let transformedAttrStr: AttributedString
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
     
-    init(attrStr: AttributedString, id: AnyHashable) {
-        self.id = id
+    let transformedAttrStr: AttributedString
+    
+    init(digest: AnyHashable, attrStr: AttributedString) {
+        self.digest = digest
         var transformingAttrStr = attrStr
         replaceInlineLineBreakIntentWithNewLineChar(&transformingAttrStr)
         transformedAttrStr = transformingAttrStr

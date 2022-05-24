@@ -95,7 +95,6 @@ class TableLayoutContext: ObservableObject {
             
             self.isColumnWidthValid = true
         }
-        //                print("Column width reset to \(newWidth)")
     }
     
     @Published var isColumnWidthValid: Bool = false
@@ -145,7 +144,6 @@ class TableLayoutContext: ObservableObject {
     }
     
     func update(containerWidth: CGFloat) {
-        //        print("Container width changed to \(containerWidth)")
         containerWidthSubject.send(containerWidth)
     }
     
@@ -154,7 +152,6 @@ class TableLayoutContext: ObservableObject {
         guard let position = cellID2CellPosition[id] else { return }
         
         cellSizes[position] = cellSize
-        //        print("Cell at \(position) reported size of \(cellSize)")
     }
     
     func width(for cellID: AnyHashable) -> CGFloat? {

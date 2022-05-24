@@ -10,45 +10,59 @@ import Foundation
 typealias TableColumnAlignment = PresentationIntent.TableColumn.Alignment
 
 struct TableBlock: ContainerMarkdownBlock {
-    let id: AnyHashable
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
     var children: Children
+    mutating func setChildrenID() {
+        setMarkdownBlockChildrenID(for: &self)
+    }
+    /// `setChildrenID()` only ensure table rows' IDs are unique in the table, while this method ensure table cells' IDs are unique in the table
+    mutating func setTableCellID() {
+        var cellIDs: Set<AnyHashable> = []
+        for rowIdx in tableRows.indices {
+            for columnIdx in tableRows[rowIdx].children.indices {
+                var id = tableRows[rowIdx].children[columnIdx].id
+                if cellIDs.contains(id) {
+                    var hasher = Hasher()
+                    hasher.combine(id)
+                    hasher.combine(rowIdx)
+                    hasher.combine(columnIdx)
+                    id = hasher.finalize()
+                    tableRows[rowIdx].children[columnIdx].id = id
+                }
+                cellIDs.insert(id)
+            }
+        }
+    }
+    
     let tableColumnAlignments: [TableColumnAlignment]
-    let cellID2CellPosition: [AnyHashable : CellPosition]
+    var cellID2CellPosition: [AnyHashable : CellPosition] = [:]
     
     typealias CellPosition = (row: Int, column: Int)
     
-    init(id: AnyHashable, tableColumnAlignments: [TableColumnAlignment], tableRows: [TableRowBlock]) {
-        self.id = id
+    init(digest: AnyHashable, tableColumnAlignments: [TableColumnAlignment], tableRows: [TableRowBlock]) {
+        self.digest = digest
         self.tableColumnAlignments = tableColumnAlignments
         
         // align the table by filling the short rows
         var filledTableRows = tableRows
         filledTableRows.enumerated().forEach { (rowIdx, row) in
             if row.children.count < tableColumnAlignments.count {
-                var rowHasher = Hasher()
-                rowHasher.combine(id)
-                rowHasher.combine(rowIdx)
-                
-                let fillingCells = (row.children.count..<tableColumnAlignments.count).map { (columnIdx) -> TableCellBlock in
-                    var hasher = rowHasher
-                    hasher.combine(columnIdx)
-                    let cellID = hasher.finalize()
-                    
-                    return TableCellBlock.cellForAlignment(with: cellID)
-                }
-                
-                filledTableRows[rowIdx].children += fillingCells
+                let filledCellCount = tableColumnAlignments.count - row.children.count
+                filledTableRows[rowIdx].children += [TableCellBlock](repeating: .cellForAlignment, count: filledCellCount)
+                filledTableRows[rowIdx].setChildrenID()
             }
         }
         self.children = filledTableRows
+        setChildrenID()
+        setTableCellID()
         
-        var cellID2CellPosition: [AnyHashable : CellPosition] = [:]
-        filledTableRows.enumerated().forEach { (rowIdx, rowBlock) in
+        self.tableRows.enumerated().forEach { (rowIdx, rowBlock) in
             rowBlock.children.enumerated().forEach { (columnIdx, cellBlock) in
                 cellID2CellPosition[cellBlock.id] = (rowIdx, columnIdx)
             }
         }
-        self.cellID2CellPosition = cellID2CellPosition
     }
     
     var rowCount: Int { tableRows.count }
@@ -61,7 +75,5 @@ struct TableBlock: ContainerMarkdownBlock {
 }
 
 extension TableCellBlock {
-    static func cellForAlignment(with id: AnyHashable) -> Self {
-        .init(attrStr: AttributedString(), id: id)
-    }
+    static var cellForAlignment: Self { Self(digest: 0 /* dummy digest */, attrStr: AttributedString()) }
 }

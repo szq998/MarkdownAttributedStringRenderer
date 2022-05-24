@@ -22,8 +22,9 @@ struct TableView: View {
     
     var children: some View {
         VStack(spacing: 0) {
-            ForEach(tableBlock.tableRows, id: \.id) { tableRow in
+            ForEach(Array(tableBlock.tableRows.enumerated()), id: \.1.id) { (idx, tableRow) in
                 TableRowView(tableRowBlock: tableRow)
+                    .font(.body.weight(idx == 0 ? .semibold : .regular)) // first row is the table header
             }
         }
     }

@@ -8,14 +8,18 @@
 import Foundation
 
 struct TableRowBlock: ContainerMarkdownBlock {
-    let id: AnyHashable
-    let isHeaderRow: Bool
-    var children: Children
+    var id: AnyHashable = 0
+    let digest: AnyHashable
     
-    init(id: AnyHashable, isHeaderRow: Bool, tableCells: [TableCellBlock]) {
-        self.id = id
-        self.isHeaderRow = isHeaderRow
+    init(digest: AnyHashable, tableCells: [TableCellBlock]) {
+        self.digest = digest
         self.children = tableCells
+        setChildrenID()
+    }
+    
+    var children: Children
+    mutating func setChildrenID() {
+        setMarkdownBlockChildrenID(for: &self)
     }
     
     var tableCells: [TableCellBlock] {

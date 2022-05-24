@@ -48,13 +48,13 @@ struct MakeBlockquote: ViewModifier {
             .padding(.leading, 4)
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(backgroundColor)
             .background(
                 Rectangle()
                     .foregroundColor(.gray)
                     .frame(width: 4)
                     .frame(maxWidth: .infinity, alignment: .leading)
             )
+            .background(backgroundColor)
             .opacity(isOutermost ? 0.6 : 1)
             .padding([.top, .bottom], 5)
     }

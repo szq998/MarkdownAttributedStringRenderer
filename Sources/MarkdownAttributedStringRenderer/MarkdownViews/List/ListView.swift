@@ -12,9 +12,10 @@ struct ListView: View {
     
     var children: some View {
         VStack(alignment: .leading, spacing: 5) {
-            ForEach(listBlock.listItems, id: \.id) { item in
+            ForEach(Array(listBlock.listItems.enumerated()), id: \.1.id) { (idx, item) in
+                let ordinal = idx + 1
                 ListItemView(listItemBlock: item)
-                    .makeListItem(with: listBlock.getListItemDecorator(for: item.ordinal))
+                    .makeListItem(with: listBlock.getListItemDecorator(for: ordinal))
             }
         }
     }

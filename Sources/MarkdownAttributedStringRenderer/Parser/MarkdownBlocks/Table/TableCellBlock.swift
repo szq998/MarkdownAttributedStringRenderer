@@ -8,6 +8,8 @@
 import Foundation
 
 struct TableCellBlock: MarkdownBlock {
+    var id: AnyHashable = 0
+    let digest: AnyHashable
+    
     let attrStr: AttributedString
-    let id: AnyHashable
 }
