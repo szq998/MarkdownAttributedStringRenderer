@@ -12,11 +12,11 @@ struct HeaderBlock: MarkdownBlock {
     let digest: AnyHashable
     
     let transformedAttrStr: AttributedString
-    let hasDividerBelow: Bool
+    let headerLevel: Int
     
     init(digest: AnyHashable, attrStr: AttributedString, headerLevel: Int) {
         self.digest = digest
-        self.hasDividerBelow = headerLevel < 3
+        self.headerLevel = headerLevel
         let transformedFont = headerLevel == 1
         ? Font.largeTitle.weight(.semibold)
         : headerLevel  == 2

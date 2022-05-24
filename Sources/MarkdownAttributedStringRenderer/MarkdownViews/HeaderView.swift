@@ -12,7 +12,7 @@ struct HeaderView: View {
     
     var body: some View {
         let header = Text(headerBlock.transformedAttrStr)
-        if headerBlock.hasDividerBelow {
+        if headerBlock.headerLevel < 3 {
             header
                 .makeDividerBelow()
         } else {

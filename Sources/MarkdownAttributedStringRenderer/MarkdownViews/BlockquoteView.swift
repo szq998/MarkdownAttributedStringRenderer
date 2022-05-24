@@ -8,10 +8,12 @@
 import SwiftUI
 
 struct BlockquoteView: View {
-    let blockquoteBlock: BlockquoteBlock
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var paragraphSpacing: CGFloat { (20 / 17) * dynamicTypeSize.bodyFontSize }
     
+    let blockquoteBlock: BlockquoteBlock
     var children: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: paragraphSpacing) {
             ForEach(blockquoteBlock.children, id: \.id) { child in
                 renderMarkdownBlock(child)
             }

@@ -8,10 +8,11 @@
 import SwiftUI
 
 struct MakeListItem: ViewModifier {
-    let decorator: ListItemDecorator
-    let decoratorWidth: CGFloat = 25
-    let spaceBetweenSeparatorAndItem: CGFloat = 8
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var decoratorWidth: CGFloat { (25 / 17) * dynamicTypeSize.bodyFontSize }
+    var spaceBetweenSeparatorAndItem: CGFloat { (8 / 17) * dynamicTypeSize.bodyFontSize }
     
+    let decorator: ListItemDecorator
     func body(content: Content) -> some View {
         // Use ZStack instead of HStack for performance. Deeply nested HStack have significant impact on responsiveness
         ZStack(alignment: .init(horizontal: .leading, vertical: .firstTextBaseline)) {
@@ -23,18 +24,24 @@ struct MakeListItem: ViewModifier {
 }
 
 struct MakeDividerBelow: ViewModifier {
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var spacingBetween: CGFloat { (10 / 17) * dynamicTypeSize.bodyFontSize }
+    
     func body(content: Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: spacingBetween) {
             content
             Divider()
-                .padding(.bottom, 10)
         }
     }
 }
 
 struct MakeBlockquote: ViewModifier {
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var decorationBarWidth: CGFloat { (4 / 17) * dynamicTypeSize.bodyFontSize }
+    var textInset: CGFloat { (10 / 17) * dynamicTypeSize.bodyFontSize }
+    var extraVerticalMargin: CGFloat { (5 / 17) * dynamicTypeSize.bodyFontSize }
     
+    @Environment(\.colorScheme) var colorScheme
     var backgroundColor: Color {
         colorScheme == .light
         ? Color(.displayP3, red: 0.95, green: 0.95, blue: 0.95)
@@ -45,24 +52,31 @@ struct MakeBlockquote: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .padding(.leading, 4)
-            .padding(10)
+            .padding(.leading, decorationBarWidth)
+            .padding(textInset)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 Rectangle()
                     .foregroundColor(.gray)
-                    .frame(width: 4)
+                    .frame(width: decorationBarWidth)
                     .frame(maxWidth: .infinity, alignment: .leading)
             )
             .background(backgroundColor)
             .opacity(isOutermost ? 0.6 : 1)
-            .padding([.top, .bottom], 5)
+            .padding([.top, .bottom], extraVerticalMargin)
     }
 }
 
 struct MakeCodeBlock: ViewModifier {
-    @Environment(\.colorScheme) var colorScheme
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var textVerticalInset: CGFloat { (15 / 17) * dynamicTypeSize.bodyFontSize }
+    var textHorizontalInset: CGFloat { (20 / 17) * dynamicTypeSize.bodyFontSize }
+    var extraVerticalMargin: CGFloat { (5 / 17) * dynamicTypeSize.bodyFontSize }
     
+    var borderWidth: CGFloat { max(0.5, (0.5 / 17) * dynamicTypeSize.bodyFontSize) }
+    var cornerRadius: CGFloat { (5 / 17) * dynamicTypeSize.bodyFontSize }
+    
+    @Environment(\.colorScheme) var colorScheme
     var backgroundColor: Color {
         colorScheme == .light
         ? Color(.displayP3, red: 0.95, green: 0.95, blue: 0.95)
@@ -72,18 +86,18 @@ struct MakeCodeBlock: ViewModifier {
     func body(content: Content) -> some View {
         content
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding([.top, .bottom], 15)
-            .padding([.leading, .trailing], 20)
+            .padding([.top, .bottom], textVerticalInset)
+            .padding([.leading, .trailing], textHorizontalInset)
             .overlay(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .stroke(lineWidth: 0.5)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(lineWidth: borderWidth)
                     .foregroundColor(.secondary)
             )
             .background(
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .foregroundColor(backgroundColor)
             )
-            .padding([.top, .bottom], 5)
+            .padding([.top, .bottom], extraVerticalMargin)
     }
 }
 

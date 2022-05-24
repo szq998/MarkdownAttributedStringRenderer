@@ -53,13 +53,16 @@ struct TableSeparator: Shape {
 }
 
 struct TableSeparatorDrawing: ViewModifier {
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var separatorWidth: CGFloat { max(0.5, (1 / 17) * dynamicTypeSize.bodyFontSize) }
+    
     @EnvironmentObject var tableLayoutContext: TableLayoutContext
     
     var shouldDrawBorder: Bool { tableLayoutContext.columnCount == 1 || tableLayoutContext.rowCount == 1 }
     var columnWidths: [CGFloat] { tableLayoutContext.hasAllSizeAcquired ? tableLayoutContext.columnWidths.map({ $0! }) : [] }
     var rowHeights: [CGFloat] { tableLayoutContext.hasAllSizeAcquired ? tableLayoutContext.rowHeights.map({ $0! }) : [] }
     
-    var separatorLineWidth: CGFloat { tableLayoutContext.isColumnWidthValid ? 1 : 0 } // hide separator when invalid
+    var separatorLineWidth: CGFloat { tableLayoutContext.isColumnWidthValid ? separatorWidth : 0 } // hide separator when invalid
 #if os(iOS)
     let strokeColor = Color(uiColor: .separator)
 #elseif os(macOS)
@@ -78,6 +81,10 @@ struct TableSeparatorDrawing: ViewModifier {
 struct TableLayout: ViewModifier {
     let id: AnyHashable
     
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    var cellVerticalMargin: CGFloat { (10 / 17) * dynamicTypeSize.bodyFontSize }
+    var cellHorizontalMargin: CGFloat { (15 / 17) * dynamicTypeSize.bodyFontSize }
+
     @Environment(\.layoutDirection) var layoutDirection: LayoutDirection
     @EnvironmentObject var tableLayoutContext: TableLayoutContext
     
@@ -86,8 +93,8 @@ struct TableLayout: ViewModifier {
     
     func body(content: Content) -> some View {
         content
-            .padding([.top, .bottom], 10)
-            .padding([.leading, .trailing], 15)
+            .padding([.top, .bottom], cellVerticalMargin)
+            .padding([.leading, .trailing], cellHorizontalMargin)
             .frame(maxWidth: width, alignment: alignment)
             .onSizeChange { newSize in
                 guard newSize != .zero else { return }
