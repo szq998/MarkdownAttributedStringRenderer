@@ -44,17 +44,25 @@ class TableLayoutContext: ObservableObject {
     typealias CellPosition = (row: Int, column: Int)
     let cellID2CellPosition: [AnyHashable : CellPosition]
     
-    let containerWidthSubject = PassthroughSubject<CGFloat, Never>()
-    var cancellers: Set<AnyCancellable> = []
+    @Published var isColumnWidthValid: Bool = false
+    @Published var cellSizes: [[CGSize]]
     
     init(rowCount: Int, columnCount: Int, tableColumnAlignments: [TableColumnAlignment], cellID2CellPosition: [AnyHashable : CellPosition]) {
         self.rowCount = rowCount
         self.columnCount = columnCount
         self.tableColumnAlignments = tableColumnAlignments
         self.cellID2CellPosition = cellID2CellPosition
-        
         cellSizes = [[CGSize]](repeating: [CGSize](repeating: .zero, count: columnCount), count: rowCount)
         
+        setTimer()
+    }
+    
+    // MARK: - Timers for Waiting System's Raw Layout
+    let containerWidthSubject = PassthroughSubject<CGFloat, Never>()
+    let manualRelayoutSubject = PassthroughSubject<Void, Never>()
+    var cancellers: Set<AnyCancellable> = []
+    
+    func setTimer() {
         containerWidthSubject
             .removeDuplicates(by: { abs($0 - $1) < 1.0 }) // workaround to resolve infinite loop
             .sink { [weak self] _ in
@@ -62,24 +70,44 @@ class TableLayoutContext: ObservableObject {
             }
             .store(in: &cancellers)
         
+        let relayoutWaitSec = 0.2
         containerWidthSubject
             .removeDuplicates(by: { abs($0 - $1) < 1.0 })
-            .debounce(for: .seconds(0.2), scheduler: RunLoop.main)
+            .debounce(for: .seconds(relayoutWaitSec), scheduler: RunLoop.main)
             .sink { [weak self] newWidth in
                 guard let self = self else { return }
                 self.containerWidthDidChanged(to: newWidth)
             }
             .store(in: &self.cancellers)
+        
+        manualRelayoutSubject
+            .sink { [weak self] in
+                withAnimation { self?.isColumnWidthValid = false }
+            }
+            .store(in: &self.cancellers)
+        
+        manualRelayoutSubject
+            .debounce(for: .seconds(relayoutWaitSec), scheduler: RunLoop.main)
+            .sink { [weak self] in
+                guard let self = self, !self.duringContainerWidthChangeRelayout else { return } // container with change relayout take precedence
+                withAnimation { self.isColumnWidthValid = true }
+            }
+            .store(in: &self.cancellers)
     }
+    
+    // MARK: - Trigger Layout
+    var duringContainerWidthChangeRelayout = false
     
     func containerWidthWillChange() {
         // invalidate column width when ccontainer size changed
+        duringContainerWidthChangeRelayout = true
         withAnimation {
             self.isColumnWidthValid = false
         }
     }
     
     func containerWidthDidChanged(to newWidth: CGFloat) {
+        duringContainerWidthChangeRelayout = false
         withAnimation {
             let columnWidthSum = self.columnWidths.reduce(CGFloat.zero) { partialResult, width in
                 if let width = width {
@@ -97,9 +125,22 @@ class TableLayoutContext: ObservableObject {
         }
     }
     
-    @Published var isColumnWidthValid: Bool = false
-    @Published var cellSizes: [[CGSize]]
+    func requestRelayout() {
+        manualRelayoutSubject.send()
+    }
     
+    func update(containerWidth: CGFloat) {
+        containerWidthSubject.send(containerWidth)
+    }
+    
+    func update(cellSize: CGSize, for id: AnyHashable) {
+        assert(cellID2CellPosition.keys.contains(id))
+        guard let position = cellID2CellPosition[id] else { return }
+        
+        cellSizes[position] = cellSize
+    }
+    
+    // MARK: - Retrieve Layout Dimensions
     var columnWidths: [CGFloat?] {
         get {
             (0..<columnCount).map { column in
@@ -141,17 +182,6 @@ class TableLayoutContext: ObservableObject {
                 size.width != .zero && size.height != .zero
             }
         }
-    }
-    
-    func update(containerWidth: CGFloat) {
-        containerWidthSubject.send(containerWidth)
-    }
-    
-    func update(cellSize: CGSize, for id: AnyHashable) {
-        assert(cellID2CellPosition.keys.contains(id))
-        guard let position = cellID2CellPosition[id] else { return }
-        
-        cellSizes[position] = cellSize
     }
     
     func width(for cellID: AnyHashable) -> CGFloat? {

@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct TableView: View {
+    @Environment(\.dynamicTypeSize) var dynamicTypeSize
+    
     let tableBlock: TableBlock
     @StateObject var tableLayoutContext: TableLayoutContext
     
@@ -38,6 +40,9 @@ struct TableView: View {
         .onSizeChange(perform: { size in
             guard size.width != .zero else { return }
             tableLayoutContext.update(containerWidth: size.width)
+        })
+        .onChange(of: dynamicTypeSize, perform: { _ in
+            tableLayoutContext.requestRelayout()
         })
         .environmentObject(tableLayoutContext)
     }
