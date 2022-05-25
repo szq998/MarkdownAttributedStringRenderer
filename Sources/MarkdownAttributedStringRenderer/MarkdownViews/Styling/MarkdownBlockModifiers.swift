@@ -14,12 +14,12 @@ struct MakeListItem: ViewModifier {
     
     let decorator: ListItemDecorator
     func body(content: Content) -> some View {
-        // Use ZStack instead of HStack for performance. Deeply nested HStack have significant impact on responsiveness
-        ZStack(alignment: .init(horizontal: .leading, vertical: .firstTextBaseline)) {
-            ListItemDecoratorView(decorator: decorator, decoratorWidth: decoratorWidth)
-            content
-                .padding(.leading, decoratorWidth + spaceBetweenSeparatorAndItem)
-        }
+        content
+            .padding(.leading, decoratorWidth + spaceBetweenSeparatorAndItem)
+        // Use background instead of HStack for performance. Deeply nested HStack have significant impact on responsiveness
+            .background(alignment: .init(horizontal: .leading, vertical: .firstTextBaseline)) {
+                ListItemDecoratorView(decorator: decorator, decoratorWidth: decoratorWidth)
+            }
     }
 }
 
