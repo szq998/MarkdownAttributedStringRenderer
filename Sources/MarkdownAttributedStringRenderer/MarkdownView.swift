@@ -8,26 +8,39 @@
 import SwiftUI
 import Combine
 
+extension Document {
+    static let blank = Document(digest: 0, children: [])
+}
+
+@MainActor
 class MarkdownModel: ObservableObject {
-    @Published var rawMarkdown: String
-    @Published var document: Document
+    @Published public var rawMarkdown: String
+    @Published private(set) var document: Document = .blank
     
     init(rawMarkdown: String) {
         _rawMarkdown = .init(initialValue: rawMarkdown)
-        _document = .init(initialValue: parser.parse(rawMarkdown.markdowAttrStr))
+        Task {
+            await self.parseRawMarkdown()
+        }
         
         $rawMarkdown
             .removeDuplicates()
             .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
             .sink { [weak self] rawMarkdown in
                 guard let self = self else { return }
-                self.document = self.parser.parse(rawMarkdown.markdowAttrStr)
+                Task {
+                    await self.parseRawMarkdown()
+                }
             }
             .store(in: &canceller)
     }
     
-    let parser = MarkdownAttributedStringParser()
-    var canceller: Set<AnyCancellable> = []
+    private func parseRawMarkdown() async {
+        document = await parser.parse(rawMarkdown.markdowAttrStr)
+    }
+    
+    private let parser = MarkdownAttributedStringParser()
+    private var canceller: Set<AnyCancellable> = []
 }
 
 public struct MarkdownView: View {

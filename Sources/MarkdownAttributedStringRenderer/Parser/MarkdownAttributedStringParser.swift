@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-class MarkdownAttributedStringParser {
+actor MarkdownAttributedStringParser {
     public func parse(_ attrStr: AttributedString) -> Document {
         let docDigest = digest(for: attrStr)
         if let cachedDocument = cachedDocument, cachedDocument.digest == docDigest {
