@@ -11,7 +11,6 @@ actor MarkdownAttributedStringParser {
     public func parse(_ attrStr: AttributedString) -> Document {
         let docDigest = digest(for: attrStr)
         if let cachedDocument = cachedDocument, cachedDocument.digest == docDigest {
-            print("Document cache used")
             return cachedDocument
         }
         
@@ -220,8 +219,6 @@ actor MarkdownAttributedStringParser {
     
     private func getCache(for digest: AnyHashable) -> MarkdownBlock? {
         if let cached = buildingCache[digest] {
-            let desc = "\(cached)".prefix(90)
-            print("cache from this run used for \(desc)")
             return cached
         } else if let cached = cache[digest] {
             // add to current run's cache
@@ -230,8 +227,6 @@ actor MarkdownAttributedStringParser {
                 // also add children to current run's cache
                 cacheChildren(for: cachedContainer)
             }
-            let desc = "\(cached)".prefix(90)
-            print("cache used for \(desc)")
             return cached
         }
         return nil
