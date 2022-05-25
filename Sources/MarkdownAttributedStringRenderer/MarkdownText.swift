@@ -1,5 +1,5 @@
 //
-//  MarkdownView.swift
+//  MarkdownText.swift
 //  
 //
 //  Created by realszq on 2022/5/15.
@@ -43,11 +43,11 @@ class MarkdownModel: ObservableObject {
     private var canceller: Set<AnyCancellable> = []
 }
 
-public struct MarkdownView: View {
+public struct MarkdownText: View {
     private let rawMarkdown: String
-    @StateObject var model: MarkdownModel
+    @StateObject private var model: MarkdownModel
     
-    public init(_ rawMarkdown: String) {
+    public init(rawMarkdown: String) {
         self.rawMarkdown = rawMarkdown
         self._model = .init(wrappedValue: MarkdownModel(rawMarkdown: rawMarkdown))
     }
@@ -69,6 +69,6 @@ fileprivate extension String {
 
 struct MarkdownAttributedStringRenderer_Previews: PreviewProvider {
     static var previews: some View {
-        MarkdownView("# Header\n- List Item 1\n> blockquote")
+        MarkdownText(rawMarkdown: "# Header\n- List Item 1\n> blockquote")
     }
 }
