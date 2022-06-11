@@ -36,7 +36,10 @@ class MarkdownModel: ObservableObject {
     }
     
     private func parseRawMarkdown() async {
-        document = await parser.parse(rawMarkdown.markdowAttrStr)
+        let newDocument = await parser.parse(rawMarkdown.markdowAttrStr)
+        withAnimation {
+            document = newDocument
+        }
     }
     
     private let parser = MarkdownAttributedStringParser()
