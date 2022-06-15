@@ -7,8 +7,16 @@
 
 import SwiftUI
 
+fileprivate extension String {
+    var markdowAttrStr: AttributedString {
+        (try? AttributedString(markdown: self, options: .init(allowsExtendedAttributes: true, interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, languageCode: nil)))
+        ?? AttributedString(self)
+    }
+}
+
 actor MarkdownAttributedStringParser {
-    public func parse(_ attrStr: AttributedString) -> Document {
+    public func parse(_ rawMarkdown: String) -> Document {
+        let attrStr = rawMarkdown.markdowAttrStr
         let docDigest = digest(for: attrStr)
         if let cachedDocument = cachedDocument, cachedDocument.digest == docDigest {
             return cachedDocument

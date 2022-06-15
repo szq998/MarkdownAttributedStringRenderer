@@ -36,7 +36,7 @@ class MarkdownModel: ObservableObject {
     }
     
     private func parseRawMarkdown() async {
-        let newDocument = await parser.parse(rawMarkdown.markdowAttrStr)
+        let newDocument = await parser.parse(rawMarkdown)
         withAnimation {
             document = newDocument
         }
@@ -60,13 +60,6 @@ public struct MarkdownText: View {
             .onChange(of: rawMarkdown) { newStr in
                 model.rawMarkdown = newStr
             }
-    }
-}
-
-fileprivate extension String {
-    var markdowAttrStr: AttributedString {
-        (try? AttributedString(markdown: self, options: .init(allowsExtendedAttributes: true, interpretedSyntax: .full, failurePolicy: .returnPartiallyParsedIfPossible, languageCode: nil)))
-        ?? AttributedString(self)
     }
 }
 
